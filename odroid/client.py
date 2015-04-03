@@ -1,7 +1,8 @@
 import argparse
+import os
+import serial
 import socket
 import subprocess
-import os
 
 
 PWM_BASE = '/sys/class/soft_pwm'
@@ -21,6 +22,11 @@ def setup_socket():
     s.connect((SOCKET_HOST, SOCKET_PORT))
     return s
 
+def setup_arduino_serial():
+    global SERIAL_PORT
+    # NOTE: This /dev/tty path might change
+    SERIAL_PORT = serial.Serial('/dev/ttyUSB0', 9600)
+
 
 #TODO: Replace with socket read
 def read():
@@ -37,10 +43,10 @@ def socket_read(connection):
     data = connection.recv(1024)
     if not data:
         return False
-    
+
     #TODO: FIX THIS IT DOESN'T REALLY WORK
     # just need to get the numeric values of the bytes coming over the socket`
-    
+
     x,y = str_data.split(',')
     print('{},{}'.format(x,y))
     return (int(x), int(y))
@@ -54,9 +60,6 @@ def normalize(raw_value):
 
 
 def main():
-    horizontal = os.fdopen(os.open('{}/pwm{}/pulse'.format(PWM_BASE, PWM_PORTS[0]), os.O_RDWR|os.O_CREAT), 'w+')
-    vertical = os.fdopen(os.open('{}/pwm{}/pulse'.format(PWM_BASE, PWM_PORTS[1]), os.O_RDWR|os.O_CREAT), 'w+')
-
     if not use_manual:
         connection = setup_socket()
 
@@ -70,12 +73,9 @@ def main():
         x, y = inputs
         normalized_x = normalize(x)
         normalized_y = normalize(y)
-        horizontal.write(str(normalized_x))
-        vertical.write(str(normalized_y))
-        horizontal.flush()
-        vertical.flush()
-    horizontal.close()
-    vertical.close()
+        SERIAL_PORT.write(bytes([255]))
+        SERIAL_PORT.write(bytes([normalized_x]))
+        SERIAL_PORT.write(bytes([normalized_y]))
     connection.close()
 
 
