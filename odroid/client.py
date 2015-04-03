@@ -69,6 +69,7 @@ def main():
         else:
             inputs = socket_read(connection)
         if not inputs:
+            #TODO: BE BETTER
             break
         x, y = inputs
         normalized_x = normalize(x)
