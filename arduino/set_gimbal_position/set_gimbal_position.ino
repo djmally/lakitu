@@ -1,8 +1,8 @@
 #include <Servo.h>
-
 Servo pan;  // Pan servo (x-axis rotation)
 Servo tilt; // Tilt servo (y-axis rotation)
-int serial_byte = 0; // Serial data buffer
+char serial_byte; // Serial data buffer
+String serial_string; // Concatenated string of serial data
 
 void setup() {
     Serial.begin(9600); // Serial connection on 9600 baud
@@ -11,20 +11,19 @@ void setup() {
 }
 
 void loop() {
-    if(Serial.available() > 0) {
+    serial_string = "";
+    while(Serial.available()) {
         serial_byte = Serial.read();
+        serial_string += serial_byte;
+        delay(2);
     }
-    /* A byte value of 255 indicates the start of a pan/tilt combination.
-     * If we see this value, we know that the next 2 values read should be
-     * the pan angle, followed by the tilt angle. */
-    if(serial_byte == 255) {
-        if(Serial.available() > 0) {
-            serial_byte = Serial.read();
-            pan.write(serial_byte);
-        }
-        if(Serial.available() > 0) {
-            serial_byte = Serial.read();
-            tilt.write(serial_byte);
-        }
+    
+    if(serial_string.length() >= 6) {
+      int pan_angle = serial_string.substring(0,3).toInt();
+      int tilt_angle = serial_string.substring(3,6).toInt();
+      Serial.println(pan_angle);
+      pan.write(pan_angle);
+      Serial.println(tilt_angle);
+      tilt.write(tilt_angle);
     }
 }
