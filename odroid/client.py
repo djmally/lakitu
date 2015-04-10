@@ -11,15 +11,18 @@ GIMBAL_MIN = 900
 GIMBAL_MAX = 2100
 
 SOCKET_HOST = '50.191.183.184' #TODO: figure out DNS or something
-SOCKET_PORT = 50007
+#SOCKET_PORT = 50007
+SOCKET_PORT = 5007
+SOCKET_MAX_CONNECTIONS = 5
 
 #use manual input, can be set with --manual flag
 use_manual = False
 
-def setup_socket():
-    s = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
-    s.connect((SOCKET_HOST, SOCKET_PORT))
-    return s
+def mk_server_socket():
+    out = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
+    out.bind((socket.gethostname(), SOCKET_PORT))
+    out.listen(SOCKET_MAX_CONNECTIONS)
+    return out
 
 #TODO: Replace with socket read
 def read():
@@ -29,6 +32,7 @@ def read():
         return False
     else:
         x, y = inputs.split(',')
+        print (repr(x).rjust(2), repr(y).rjust(2))
         return (int(x), int(y))
 
 
@@ -51,18 +55,18 @@ def normalize(raw_value):
     normalized_value = (raw_value * gimbal_range) / 180
     return int(normalized_value + GIMBAL_MIN)
 
-
 def main():
     horizontal = os.fdopen(os.open('{}/pwm{}/pulse'.format(PWM_BASE, PWM_PORTS[0]), os.O_RDWR|os.O_CREAT), 'w+')
     vertical = os.fdopen(os.open('{}/pwm{}/pulse'.format(PWM_BASE, PWM_PORTS[1]), os.O_RDWR|os.O_CREAT), 'w+')
     if not use_manual:
-        connection = setup_socket()
+        server = mk_server_socket() 
 
     while True:
         if use_manual:
             inputs = read()
         else:
-            inputs = socket_read(connection)
+            #inputs = socket_read(connection)
+            inputs = socket_read()
         if not inputs:
             #TODO: BE BETTER
             break
