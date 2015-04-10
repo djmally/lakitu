@@ -1,6 +1,5 @@
 import argparse
 import os
-import serial
 import socket
 import subprocess
 
@@ -21,12 +20,6 @@ def setup_socket():
     s = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
     s.connect((SOCKET_HOST, SOCKET_PORT))
     return s
-
-def setup_arduino_serial():
-    global SERIAL_PORT
-    # NOTE: This /dev/tty path might change
-    SERIAL_PORT = serial.Serial('/dev/ttyUSB0', 9600)
-
 
 #TODO: Replace with socket read
 def read():
@@ -60,6 +53,8 @@ def normalize(raw_value):
 
 
 def main():
+    horizontal = os.fdopen(os.open('{}/pwm{}/pulse'.format(PWM_BASE, PWM_PORTS[0]), os.O_RDWR|os.O_CREAT), 'w+')
+    vertical = os.fdopen(os.open('{}/pwm{}/pulse'.format(PWM_BASE, PWM_PORTS[1]), os.O_RDWR|os.O_CREAT), 'w+')
     if not use_manual:
         connection = setup_socket()
 
@@ -74,9 +69,12 @@ def main():
         x, y = inputs
         normalized_x = normalize(x)
         normalized_y = normalize(y)
-        SERIAL_PORT.write(bytes([255]))
-        SERIAL_PORT.write(bytes([normalized_x]))
-        SERIAL_PORT.write(bytes([normalized_y]))
+        horizontal.write(str(normalized_x))
+        vertical.write(str(normalized_y))
+        horizontal.flush()
+        vertical.flush()
+    horizontal.close()
+    vertical.close()
     connection.close()
 
 
