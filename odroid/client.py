@@ -15,8 +15,7 @@ PWM_PORTS = [200, 204]
 GIMBAL_MIN = 900
 GIMBAL_MAX = 2100
 
-SOCKET_HOST = '50.191.183.184' #TODO: figure out DNS or something
-#SOCKET_PORT = 50007
+#SOCKET_HOST = '50.191.183.184' #TODO: figure out DNS or something
 SOCKET_PORT = 50007
 SOCKET_MAX_CONNECTIONS = 5
 
@@ -25,7 +24,8 @@ use_manual = False
 
 def mk_server_socket():
     out = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
-    socket_hostname = socket.gethostname()
+    #socket_hostname = socket.gethostname()
+    socket_hostname = ''
     print(socket_hostname)
     out.bind((socket_hostname, SOCKET_PORT))
     out.listen(SOCKET_MAX_CONNECTIONS)
@@ -78,26 +78,26 @@ def main():
             bytes_recieved = 0
             while bytes_recieved < MESSAGE_LENGTH:
                 chunk = clientsocket.recv(MESSAGE_LENGTH - bytes_recieved)
+                print (chunk)
                 chunks.append(chunk)
                 chunk_size = len(chunk)
                 bytes_recieved = bytes_recieved + chunk_size
                 if chunk_size == 0:
                     break
-            inputs = (chunks[0], chunks[1])
-        if not inputs:
-            #TODO: BE BETTER
-            break
-        x, y = inputs
-        normalized_x = normalize(x)
-        normalized_y = normalize(y)
-        horizontal.write(str(normalized_x))
-        vertical.write(str(normalized_y))
-        horizontal.flush()
-        vertical.flush()
-        print(inputs)
+            inputs = None if len(chunks) < 2 else (chunks[0], chunks[1])
+            clientsocket.close()
+        if inputs:
+            x, y = inputs
+            normalized_x = normalize(x)
+            normalized_y = normalize(y)
+            horizontal.write(str(normalized_x))
+            vertical.write(str(normalized_y))
+            horizontal.flush()
+            vertical.flush()
+            print(inputs)
     horizontal.close()
     vertical.close()
-    connection.close()
+    serversocket.close()
 
 
 def setup():
