@@ -4,7 +4,12 @@ import socket
 import subprocess
 
 
-PWM_BASE = '/sys/class/soft_pwm'
+#TODO: change this back
+PWM_BASE = "./soft_pwm"
+#PWM_BASE = '/sys/class/soft_pwm'
+OS_PULSE = "./pulse"
+#OS_PULSE = '{}/pwm{}/pulse'
+
 PWM_PORTS = [200, 204]
 
 GIMBAL_MIN = 900
@@ -12,7 +17,7 @@ GIMBAL_MAX = 2100
 
 SOCKET_HOST = '50.191.183.184' #TODO: figure out DNS or something
 #SOCKET_PORT = 50007
-SOCKET_PORT = 5007
+SOCKET_PORT = 50007
 SOCKET_MAX_CONNECTIONS = 5
 
 #use manual input, can be set with --manual flag
@@ -20,7 +25,9 @@ use_manual = False
 
 def mk_server_socket():
     out = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
-    out.bind((socket.gethostname(), SOCKET_PORT))
+    socket_hostname = socket.gethostname()
+    print(socket_hostname)
+    out.bind((socket_hostname, SOCKET_PORT))
     out.listen(SOCKET_MAX_CONNECTIONS)
     return out
 
@@ -56,17 +63,27 @@ def normalize(raw_value):
     return int(normalized_value + GIMBAL_MIN)
 
 def main():
-    horizontal = os.fdopen(os.open('{}/pwm{}/pulse'.format(PWM_BASE, PWM_PORTS[0]), os.O_RDWR|os.O_CREAT), 'w+')
-    vertical = os.fdopen(os.open('{}/pwm{}/pulse'.format(PWM_BASE, PWM_PORTS[1]), os.O_RDWR|os.O_CREAT), 'w+')
+    horizontal = os.fdopen(os.open(OS_PULSE.format(PWM_BASE, PWM_PORTS[0]), os.O_RDWR|os.O_CREAT), 'w+')
+    vertical   = os.fdopen(os.open(OS_PULSE.format(PWM_BASE, PWM_PORTS[1]), os.O_RDWR|os.O_CREAT), 'w+')
     if not use_manual:
-        server = mk_server_socket() 
+        serversocket = mk_server_socket() 
 
     while True:
         if use_manual:
             inputs = read()
         else:
-            #inputs = socket_read(connection)
-            inputs = socket_read()
+            MESSAGE_LENGTH = 2
+            (clientsocket, address) = serversocket.accept()
+            chunks = []
+            bytes_recieved = 0
+            while bytes_recieved < MESSAGE_LENGTH:
+                chunk = clientsocket.recv(MESSAGE_LENGTH - bytes_recieved)
+                chunks.append(chunk)
+                chunk_size = len(chunk)
+                bytes_recieved = bytes_recieved + chunk_size
+                if chunk_size == 0:
+                    break
+            inputs = (chunks[0], chunks[1])
         if not inputs:
             #TODO: BE BETTER
             break
@@ -77,6 +94,7 @@ def main():
         vertical.write(str(normalized_y))
         horizontal.flush()
         vertical.flush()
+        print(inputs)
     horizontal.close()
     vertical.close()
     connection.close()
