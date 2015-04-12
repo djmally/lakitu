@@ -1,14 +1,15 @@
 import argparse
 import os
 import socket
+import struct
 import subprocess
 
 
 #TODO: change this back
-#PWM_BASE = "./soft_pwm" # a dummy value
-PWM_BASE = '/sys/class/soft_pwm'
-#OS_PULSE = "./pulse" # dummy value as well
-OS_PULSE = '{}/pwm{}/pulse'
+PWM_BASE = "./soft_pwm" # a dummy value
+#PWM_BASE = '/sys/class/soft_pwm'
+OS_PULSE = "./pulse" # dummy value as well
+#OS_PULSE = '{}/pwm{}/pulse'
 
 PWM_PORTS = [200, 204]
 
@@ -26,7 +27,7 @@ def mk_server_socket():
     out = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
     #socket_hostname = socket.gethostname()
     socket_hostname = ''
-    print(socket_hostname)
+    #print(socket_hostname)
     out.bind((socket_hostname, SOCKET_PORT))
     out.listen(SOCKET_MAX_CONNECTIONS)
     return out
@@ -39,7 +40,7 @@ def read():
         return False
     else:
         x, y = inputs.split(',')
-        print (repr(x).rjust(2), repr(y).rjust(2))
+        #print (repr(x).rjust(2), repr(y).rjust(2))
         return (int(x), int(y))
 
 
@@ -52,13 +53,13 @@ def socket_read(connection):
     # just need to get the numeric values of the bytes coming over the socket`
 
     x,y = str_data.split(',')
-    print('{},{}'.format(x,y))
+    #print('{},{}'.format(x,y))
     return (int(x), int(y))
 
 
 def normalize(raw_value):
     ''' Converts raw_value input in [0, 100] to the appropriate value in [MIN_GIMBAL, MAX_GIMBAL] '''
-    gimbal_range = GIMBAL_MAX- GIMBAL_MIN
+    gimbal_range = GIMBAL_MAX - GIMBAL_MIN
     normalized_value = (raw_value * gimbal_range) / 180
     return int(normalized_value + GIMBAL_MIN)
 
@@ -66,7 +67,7 @@ def main():
     horizontal = os.fdopen(os.open(OS_PULSE.format(PWM_BASE, PWM_PORTS[0]), os.O_RDWR|os.O_CREAT), 'w+')
     vertical   = os.fdopen(os.open(OS_PULSE.format(PWM_BASE, PWM_PORTS[1]), os.O_RDWR|os.O_CREAT), 'w+')
     if not use_manual:
-        serversocket = mk_server_socket() 
+        serversocket = mk_server_socket()
 
     while True:
         if use_manual:
@@ -75,26 +76,24 @@ def main():
             MESSAGE_LENGTH = 2
             (clientsocket, address) = serversocket.accept()
             chunks = []
-            bytes_recieved = 0
-            while bytes_recieved < MESSAGE_LENGTH:
-                chunk = clientsocket.recv(MESSAGE_LENGTH - bytes_recieved)
-                print (chunk)
+            bytes_received = 0
+            while len(chunks) < MESSAGE_LENGTH + 1:
+                chunk = clientsocket.recv(MESSAGE_LENGTH - bytes_received)
                 chunks.append(chunk)
-                chunk_size = len(chunk)
-                bytes_recieved = bytes_recieved + chunk_size
-                if chunk_size == 0:
+                bytes_received += len(chunk)
+                if len(chunk) == 0:
                     break
-            inputs = None if len(chunks) < 2 else (chunks[0], chunks[1])
+            inputs = None if len(chunks) < 2 else chunks
             clientsocket.close()
         if inputs:
-            x, y = inputs
+            y, x = inputs[0][0], inputs[0][1]
             normalized_x = normalize(x)
             normalized_y = normalize(y)
             horizontal.write(str(normalized_x))
             vertical.write(str(normalized_y))
             horizontal.flush()
             vertical.flush()
-            print(inputs)
+            print(normalized_x, normalized_y)
     horizontal.close()
     vertical.close()
     serversocket.close()
