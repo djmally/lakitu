@@ -5,10 +5,10 @@ import subprocess
 
 
 #TODO: change this back
-PWM_BASE = "./soft_pwm"
-#PWM_BASE = '/sys/class/soft_pwm'
-OS_PULSE = "./pulse"
-#OS_PULSE = '{}/pwm{}/pulse'
+#PWM_BASE = "./soft_pwm" # a dummy value
+PWM_BASE = '/sys/class/soft_pwm'
+#OS_PULSE = "./pulse" # dummy value as well
+OS_PULSE = '{}/pwm{}/pulse'
 
 PWM_PORTS = [200, 204]
 
