@@ -11,15 +11,35 @@ OS_PULSE = '{}/pwm{}/pulse'
 
 PWM_PORTS = [200, 204]
 
-GIMBAL_MIN = 900
-GIMBAL_MAX = 2100
+GIMBAL_MIN_X = 900
+GIMBAL_MIN_Y = 900
+GIMBAL_MAX_X = 2100
+GIMBAL_MAX_Y = 2100
 
 #SOCKET_HOST = '50.191.183.184' #TODO: figure out DNS or something
 SOCKET_PORT = 50007
 SOCKET_MAX_CONNECTIONS = 5
 
+# Minimum change in position before moving servos
+MIN_DELTA = 20
+
 #use manual input, can be set with --manual flag
 use_manual = False
+# Calibration flag, can be set with --calibrate
+calibrate = False
+
+def calibrate_gimbal(sock):
+    raw_input('Left calibration. Look directly to your left. (Press enter when ready)')
+    left = socket_read(sock)
+    raw_input('Right calibration. Look directly to your right. (Press enter when ready)')
+    right = socket_read(sock)
+    raw_input('Downward calibration. Look directly down. (Press enter when ready)')
+    down = socket_read(sock)
+    raw_input('Upward calibration. Look directly up. (Press enter when ready)')
+    up = socket_read(sock)
+    GIMBAL_MIN_X, GIMBAL_MAX_X = left[0], right[0]
+    GIMBAL_MIN_Y, GIMBAL_MAX_Y = down[1], up[1]
+
 
 def mk_server_socket():
     out = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
@@ -105,10 +125,15 @@ def setup():
     parser.add_argument('--manual', dest='manual', action='store_const',
                         const=True, default=False,
                         help='Use manual keyboard-written input values for pan and tilt rather than those sent over the socket')
+    parser.add_argument('--calibrate', dest='calibrate', action='store_const',
+                        const=True, default=False,
+                        help='Calibrate the gimbal using the Oculus Rift')
     args = parser.parse_args()
 
     global use_manual
+    global calibrate
     use_manual = args.manual
+    calibrate = args.calibrate
     if args.setup:
         for port in PWM_PORTS:
             init_cmd = 'echo {} > {}/export'.format(port, PWM_BASE)
