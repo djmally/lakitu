@@ -62,53 +62,51 @@ def read():
         return (int(x), int(y))
 
 
-def socket_read(connection):
-    data = connection.recv(1024)
-    if not data:
-        return False
+def socket_read(serversocket):
+    MESSAGE_LENGTH = 2
+    (clientsocket, address) = serversocket.accept()
+    chunks = []
+    bytes_received = 0
+    while len(chunks) < MESSAGE_LENGTH + 1:
+        chunk = clientsocket.recv(MESSAGE_LENGTH - bytes_received)
+        chunks.append(chunk)
+        bytes_received += len(chunk)
+        if len(chunk) == 0:
+            break
+    inputs = None if len(chunks) < 2 else chunks
+    clientsocket.close()
+    return inputs
 
-    #TODO: FIX THIS IT DOESN'T REALLY WORK
-    # just need to get the numeric values of the bytes coming over the socket`
 
-    x,y = str_data.split(',')
-    #print('{},{}'.format(x,y))
-    return (int(x), int(y))
-
-
-def normalize(raw_value):
+def normalize(raw_value, horiz):
     ''' Converts raw_value input in [0, 100] to the appropriate value in [MIN_GIMBAL, MAX_GIMBAL] '''
-    gimbal_range = GIMBAL_MAX - GIMBAL_MIN
+    gimbal_range = GIMBAL_MAX_X - GIMBAL_MIN_X if horiz else GIMBAL_MAX_Y - GIMBAL_MIN_Y
     normalized_value = (raw_value * gimbal_range) / 180
-    return int(normalized_value + GIMBAL_MIN)
+    return int(normalized_value + GIMBAL_MIN_X) if horiz else int(normalized_value + GIMBAL_MIN_Y)
 
 def main():
     horizontal = os.fdopen(os.open(OS_PULSE.format(PWM_BASE, PWM_PORTS[0]), os.O_RDWR|os.O_CREAT), 'w+')
     vertical   = os.fdopen(os.open(OS_PULSE.format(PWM_BASE, PWM_PORTS[1]), os.O_RDWR|os.O_CREAT), 'w+')
     if not use_manual:
         serversocket = mk_server_socket()
+        if calibrate:
+            calibrate_gimbal(serversocket)
 
+    old_x = 0
+    old_y = 0
     while True:
         if use_manual:
             inputs = read()
         else:
-            MESSAGE_LENGTH = 2
-            (clientsocket, address) = serversocket.accept()
-            chunks = []
-            bytes_received = 0
-            while len(chunks) < MESSAGE_LENGTH + 1:
-                chunk = clientsocket.recv(MESSAGE_LENGTH - bytes_received)
-                chunks.append(chunk)
-                bytes_received += len(chunk)
-                if len(chunk) == 0:
-                    break
-            inputs = None if len(chunks) < 2 else chunks
-            clientsocket.close()
+            inputs = socket_read(serversocket)
         if inputs:
             y, x = inputs[0][0], inputs[0][1]
-            normalized_x = normalize(x)
-            normalized_y = normalize(y)
-            horizontal.write(str(normalized_x))
-            vertical.write(str(normalized_y))
+            normalized_x = normalize(x, True)
+            normalized_y = normalize(y, False)
+            if abs(normalized_x - old_x) > MIN_DELTA:
+                horizontal.write(str(normalized_x))
+            if abs(normalized_y - old_y) > MIN_DELTA:
+                vertical.write(str(normalized_y))
             horizontal.flush()
             vertical.flush()
             print(normalized_x, normalized_y)
