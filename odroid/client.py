@@ -63,8 +63,13 @@ def socket_read(serversocket):
     clientsocket.close()
     return inputs
 
+def center_servos(h, v):
+    h.write(str(1500))
+    v.write(str(1500))
+    h.flush()
+    v.flush()
 
-def normalize(raw_value, horiz):
+def normalize(raw_value):
     ''' Converts raw_value input in [0, 100] to the appropriate value in [MIN_GIMBAL, MAX_GIMBAL] '''
     normalized_value = (raw_value * GIMBAL_RANGE) / 180
     return int(normalized_value + GIMBAL_MIN)
@@ -74,8 +79,8 @@ def main():
     vertical   = os.fdopen(os.open(OS_PULSE.format(PWM_BASE, PWM_PORTS[1]), os.O_RDWR|os.O_CREAT), 'w+')
     if not use_manual:
         serversocket = mk_server_socket()
-        if calibrate:
-            calibrate_gimbal(serversocket)
+    if calibrate:
+        center_servos(horizontal, vertical)
 
     old_x = 0
     old_y = 0
@@ -87,8 +92,8 @@ def main():
                 inputs = socket_read(serversocket)
             if inputs and not use_manual:
                 x, y = inputs[0][0], inputs[0][1]
-                normalized_x = normalize(x, True)
-                normalized_y = normalize(y, False)
+                normalized_x = normalize(x)
+                normalized_y = normalize(y)
                 if abs(normalized_x - old_x) > MIN_DELTA:
                     horizontal.write(str(abs(180 - normalized_x)))
                     horizontal.flush()
