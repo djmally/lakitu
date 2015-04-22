@@ -13,10 +13,14 @@ OS_PULSE = '{}/pwm{}/pulse'
 #              OUTSIDE
 PWM_PORTS = [199, 204]
 
-GIMBAL_MIN_X = 900
-GIMBAL_MIN_Y = 900
-GIMBAL_MAX_X = 2100
-GIMBAL_MAX_Y = 2100
+GIMBAL_MIN = 900
+GIMBAL_MAX = 2100
+GIMBAL_RANGE = GIMBAL_MAX - GIMBAL_MIN
+
+NORMALIZE_MIN_X = 0
+NOMRALIZE_MAX_X = 180
+NORMALIZE_MIN_Y = 0
+NORMALIZE_MAX_Y = 180
 
 SOCKET_PORT = 50007
 SOCKET_MAX_CONNECTIONS = 5
@@ -31,17 +35,17 @@ calibrate = False
 
 def calibrate_gimbal(sock):
     input('Left calibration. Look directly to your left. (Press enter when ready)')
-    left = socket_read(sock)
+    left = socket_read(sock)[0][0]
     input('Right calibration. Look directly to your right. (Press enter when ready)')
-    right = socket_read(sock)
+    right = socket_read(sock)[0][0]
     input('Downward calibration. Look directly down. (Press enter when ready)')
-    down = socket_read(sock)
+    down = socket_read(sock)[0][1]
     input('Upward calibration. Look directly up. (Press enter when ready)')
-    up = socket_read(sock)
-    global GIMBAL_MIN_X, GIMBAL_MAX_X, GIMBAL_MIN_Y, GIMBAL_MAX_Y
-    GIMBAL_MIN_X, GIMBAL_MAX_X = left[0], right[0]
-    GIMBAL_MIN_Y, GIMBAL_MAX_Y = down[0], up[0]
-    print("x range is {} - {}, y range is {} - {}".format(GIMBAL_MIN_X, GIMBAL_MAX_X, GIMBAL_MIN_Y, GIMBAL_MAX_Y))
+    up = socket_read(sock)[0][1]
+    global NORMALIZE_MIN_X, NORMALIZE_MIN_Y, NORMALIZE_MAX_X, NORMALIZE_MAX_Y
+    NORMALIZE_MIN_X, NORMALIZE_MAX_X = left, right
+    NORMALIZE_MIN_Y, NORMALIZE_MAX_Y = down, up
+    print("x range is {} - {}, y range is {} - {}".format(NORMALIZE_MIN_X, NORMALIZE_MAX_X, NORMALIZE_MIN_Y, NORMALIZE_MAX_Y))
 
 
 def mk_server_socket():
@@ -82,9 +86,10 @@ def socket_read(serversocket):
 
 def normalize(raw_value, horiz):
     ''' Converts raw_value input in [0, 100] to the appropriate value in [MIN_GIMBAL, MAX_GIMBAL] '''
-    gimbal_range = GIMBAL_MAX_X - GIMBAL_MIN_X if horiz else GIMBAL_MAX_Y - GIMBAL_MIN_Y
-    normalized_value = (raw_value * gimbal_range) / 180
-    return int(normalized_value + GIMBAL_MIN_X) if horiz else int(normalized_value + GIMBAL_MIN_Y)
+    normalize_range = NORMALIZE_MAX_X - NORMALIZE_MIN_X if horiz else NORMALIZE_MAX_Y - NORMALIZE_MIN_Y
+    raw_value -= NORMALIZE_MIN_X if horiz else NORMALIZE_MIN_Y
+    normalized_value = (raw_value * GIMBAL_RANGE) / normalize_range
+    return int(normalized_value + NORMALIZE_MIN_X) if horiz else int(normalized_value + NORMALIZE_MIN_Y)
 
 def main():
     horizontal = os.fdopen(os.open(OS_PULSE.format(PWM_BASE, PWM_PORTS[0]), os.O_RDWR|os.O_CREAT), 'w+')
