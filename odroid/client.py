@@ -35,13 +35,30 @@ calibrate = False
 
 def calibrate_gimbal(sock):
     input('Left calibration. Look directly to your left. (Press enter when ready)')
-    left = socket_read(sock)[0][0]
+    c = ''
+    left, right, down, up = -1, -1, -1, -1
+    while c != 'y':
+        left = socket_read(sock)[0][0]
+        print("Left: {}".format(left))
+        c = input("Accept calibration? (y/n)")
     input('Right calibration. Look directly to your right. (Press enter when ready)')
-    right = socket_read(sock)[0][0]
+    c = ''
+    while c != 'y':
+        right = socket_read(sock)[0][0]
+        print("Right: {}".format(right))
+        c = input("Accept calibration? (y/n)")
     input('Downward calibration. Look directly down. (Press enter when ready)')
-    down = socket_read(sock)[0][1]
+    c = ''
+    while c != 'y':
+        down = socket_read(sock)[0][1]
+        print("Down: {}".format(down))
+        c = input("Accept calibration? (y/n)")
     input('Upward calibration. Look directly up. (Press enter when ready)')
-    up = socket_read(sock)[0][1]
+    c = ''
+    while c != 'y':
+        up = socket_read(sock)[0][1]
+        print("Up: {}".format(up))
+        c = input("Accept calibration? (y/n)")
     global NORMALIZE_MIN_X, NORMALIZE_MIN_Y, NORMALIZE_MAX_X, NORMALIZE_MAX_Y
     NORMALIZE_MIN_X, NORMALIZE_MAX_X = left, right
     NORMALIZE_MIN_Y, NORMALIZE_MAX_Y = down, up
