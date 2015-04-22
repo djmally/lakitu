@@ -17,11 +17,6 @@ GIMBAL_MIN = 900
 GIMBAL_MAX = 2100
 GIMBAL_RANGE = GIMBAL_MAX - GIMBAL_MIN
 
-NORMALIZE_MIN_X = 0
-NORMALIZE_MAX_X = 180
-NORMALIZE_MIN_Y = 0
-NORMALIZE_MAX_Y = 180
-
 SOCKET_PORT = 50007
 SOCKET_MAX_CONNECTIONS = 5
 
@@ -32,38 +27,6 @@ MIN_DELTA = 50
 use_manual = False
 # Calibration flag, can be set with --calibrate
 calibrate = False
-
-def calibrate_gimbal(sock):
-    input('Left calibration. Look directly to your left. (Press enter when ready)')
-    c = ''
-    left, right, down, up = -1, -1, -1, -1
-    while c != 'y':
-        left = socket_read(sock)[0][0]
-        print("Left: {}".format(left))
-        c = input("Accept calibration? (y/n)")
-    input('Right calibration. Look directly to your right. (Press enter when ready)')
-    c = ''
-    while c != 'y':
-        right = socket_read(sock)[0][0]
-        print("Right: {}".format(right))
-        c = input("Accept calibration? (y/n)")
-    input('Downward calibration. Look directly down. (Press enter when ready)')
-    c = ''
-    while c != 'y':
-        down = socket_read(sock)[0][1]
-        print("Down: {}".format(down))
-        c = input("Accept calibration? (y/n)")
-    input('Upward calibration. Look directly up. (Press enter when ready)')
-    c = ''
-    while c != 'y':
-        up = socket_read(sock)[0][1]
-        print("Up: {}".format(up))
-        c = input("Accept calibration? (y/n)")
-    global NORMALIZE_MIN_X, NORMALIZE_MIN_Y, NORMALIZE_MAX_X, NORMALIZE_MAX_Y
-    NORMALIZE_MIN_X, NORMALIZE_MAX_X = left, right
-    NORMALIZE_MIN_Y, NORMALIZE_MAX_Y = down, up
-    print("x range is {} - {}, y range is {} - {}".format(NORMALIZE_MIN_X, NORMALIZE_MAX_X, NORMALIZE_MIN_Y, NORMALIZE_MAX_Y))
-
 
 def mk_server_socket():
     out = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
@@ -103,10 +66,8 @@ def socket_read(serversocket):
 
 def normalize(raw_value, horiz):
     ''' Converts raw_value input in [0, 100] to the appropriate value in [MIN_GIMBAL, MAX_GIMBAL] '''
-    normalize_range = NORMALIZE_MAX_X - NORMALIZE_MIN_X if horiz else NORMALIZE_MAX_Y - NORMALIZE_MIN_Y
-    raw_value -= NORMALIZE_MIN_X if horiz else NORMALIZE_MIN_Y
-    normalized_value = (raw_value * GIMBAL_RANGE) / normalize_range
-    return int(normalized_value + NORMALIZE_MIN_X) if horiz else int(normalized_value + NORMALIZE_MIN_Y)
+    normalized_value = (raw_value * GIMBAL_RANGE) / 180
+    return int(normalized_value + GIMBAL_MIN)
 
 def main():
     horizontal = os.fdopen(os.open(OS_PULSE.format(PWM_BASE, PWM_PORTS[0]), os.O_RDWR|os.O_CREAT), 'w+')
