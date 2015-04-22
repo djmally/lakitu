@@ -1,27 +1,28 @@
 import argparse
 import os
 import socket
-import struct
 import subprocess
+from time import sleep
 
 PWM_BASE = '/sys/class/soft_pwm'
 OS_PULSE = '{}/pwm{}/pulse'
-#PWM_BASE = "./soft_pwm" # a dummy value
-#OS_PULSE = "./pulse" # dummy value as well
 
-PWM_PORTS = [200, 204]
+#              INSIDE
+#     |  X  |  X  |  X  | POW |
+#     | 199 | 200 | 204 | GRD |
+#              OUTSIDE
+PWM_PORTS = [199, 204]
 
 GIMBAL_MIN_X = 900
 GIMBAL_MIN_Y = 900
 GIMBAL_MAX_X = 2100
 GIMBAL_MAX_Y = 2100
 
-#SOCKET_HOST = '50.191.183.184' #TODO: figure out DNS or something
 SOCKET_PORT = 50007
 SOCKET_MAX_CONNECTIONS = 5
 
 # Minimum change in position before moving servos
-MIN_DELTA = 20
+MIN_DELTA = 50
 
 #use manual input, can be set with --manual flag
 use_manual = False
@@ -29,16 +30,18 @@ use_manual = False
 calibrate = False
 
 def calibrate_gimbal(sock):
-    raw_input('Left calibration. Look directly to your left. (Press enter when ready)')
+    input('Left calibration. Look directly to your left. (Press enter when ready)')
     left = socket_read(sock)
-    raw_input('Right calibration. Look directly to your right. (Press enter when ready)')
+    input('Right calibration. Look directly to your right. (Press enter when ready)')
     right = socket_read(sock)
-    raw_input('Downward calibration. Look directly down. (Press enter when ready)')
+    input('Downward calibration. Look directly down. (Press enter when ready)')
     down = socket_read(sock)
-    raw_input('Upward calibration. Look directly up. (Press enter when ready)')
+    input('Upward calibration. Look directly up. (Press enter when ready)')
     up = socket_read(sock)
+    global GIMBAL_MIN_X, GIMBAL_MAX_X, GIMBAL_MIN_Y, GIMBAL_MAX_Y
     GIMBAL_MIN_X, GIMBAL_MAX_X = left[0], right[0]
-    GIMBAL_MIN_Y, GIMBAL_MAX_Y = down[1], up[1]
+    GIMBAL_MIN_Y, GIMBAL_MAX_Y = down[0], up[0]
+    print("x range is {} - {}, y range is {} - {}".format(GIMBAL_MIN_X, GIMBAL_MAX_X, GIMBAL_MIN_Y, GIMBAL_MAX_Y))
 
 
 def mk_server_socket():
@@ -58,7 +61,6 @@ def read():
         return False
     else:
         x, y = inputs.split(',')
-        #print (repr(x).rjust(2), repr(y).rjust(2))
         return (int(x), int(y))
 
 
@@ -95,25 +97,36 @@ def main():
     old_x = 0
     old_y = 0
     while True:
-        if use_manual:
-            inputs = read()
-        else:
-            inputs = socket_read(serversocket)
-        if inputs:
-            y, x = inputs[0][0], inputs[0][1]
-            normalized_x = normalize(x, True)
-            normalized_y = normalize(y, False)
-            if abs(normalized_x - old_x) > MIN_DELTA:
+        try:
+            if use_manual:
+                inputs = read()
+            else:
+                inputs = socket_read(serversocket)
+            if inputs and not use_manual:
+                x, y = inputs[0][0], inputs[0][1]
+                normalized_x = normalize(x, True)
+                normalized_y = normalize(y, False)
+                if abs(normalized_x - old_x) > MIN_DELTA:
+                    horizontal.write(str(abs(180 - normalized_x)))
+                    horizontal.flush()
+                if abs(normalized_y - old_y) > MIN_DELTA:
+                    vertical.write(str(normalized_y))
+                    vertical.flush()
+                print(normalized_x, normalized_y)
+            elif inputs and use_manual:
+                x, y = inputs
+                normalized_x = normalize(x, True)
+                normalized_y = normalize(y, False)
                 horizontal.write(str(normalized_x))
-            if abs(normalized_y - old_y) > MIN_DELTA:
                 vertical.write(str(normalized_y))
-            horizontal.flush()
-            vertical.flush()
-            print(normalized_x, normalized_y)
-    horizontal.close()
-    vertical.close()
-    serversocket.close()
-
+                horizontal.flush()
+                vertical.flush()
+                print(normalized_x, normalized_y)
+            sleep(.5)
+        except KeyboardInterrupt:
+            horizontal.close()
+            vertical.close()
+            serversocket.close()
 
 def setup():
     parser = argparse.ArgumentParser(description='Client for socket connection to Oculus Rift')
