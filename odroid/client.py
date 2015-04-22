@@ -105,7 +105,6 @@ def main():
                 horizontal.flush()
                 vertical.flush()
                 print(normalized_x, normalized_y)
-            sleep(.5)
         except KeyboardInterrupt:
             horizontal.close()
             vertical.close()
